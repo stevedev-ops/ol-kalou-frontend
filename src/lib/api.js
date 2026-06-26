@@ -1,4 +1,4 @@
-const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
+const API_URL = import.meta.env.VITE_API_URL || 'https://exs-d8vf7tflk1mc738t0s40.onrender.com/api';
 
 async function request(endpoint, { body, ...customConfig } = {}) {
   const token = localStorage.getItem('dcp_token');
