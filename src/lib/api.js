@@ -1,4 +1,5 @@
-const API_URL = import.meta.env.VITE_API_URL || 'https://ol-kalou-backend.onrender.com/api';
+// Force the correct backend URL (ignoring Vercel environment variables)
+const API_URL = 'https://ol-kalou-backend.onrender.com/api';
 
 async function request(endpoint, { body, ...customConfig } = {}) {
   const token = localStorage.getItem('dcp_token');
