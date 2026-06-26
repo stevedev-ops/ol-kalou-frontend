@@ -7,7 +7,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'logo.png'],
+      includeAssets: ['favicon.png', 'logo.png'],
       manifest: {
         name: 'Ol Kalou DCP Get Out The Voting Network',
         short_name: 'DCP Ol Kalou',
