@@ -27,7 +27,7 @@ export default defineConfig({
         // Runtime caching: cache API calls with network-first strategy
         runtimeCaching: [
           {
-            urlPattern: ({ url }) => url.origin === 'http://127.0.0.1:8000',
+            urlPattern: ({ url }) => url.pathname.startsWith('/api') || url.pathname.startsWith('/auth'),
             handler: 'NetworkFirst',
             options: {
               cacheName: 'dcp-api-cache',
