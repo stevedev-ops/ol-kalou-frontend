@@ -1,25 +1,26 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, lazy, Suspense } from "react";
 import { Routes, Route, useNavigate, useSearchParams, NavLink, useLocation, Navigate } from 'react-router-dom';
 import { Toaster } from "sonner";
-import Landing from './pages/Landing';
-import Dashboard from './pages/Dashboard';
-import Members from './pages/Members';
-import Reports from './pages/Reports';
-import Admin from './pages/Admin';
-import Enrollment from './pages/Enrollment';
-import Login from './pages/Login';
-import PollingCoverage from './pages/PollingCoverage';
-import Leaderboard from './pages/Leaderboard';
-import Gotv from './pages/Gotv';
-import Canvass from './pages/Canvass';
-import Transport from './pages/Transport';
-import PollingAgents from './pages/PollingAgents';
-import Pvt from './pages/Pvt';
-import SmsExport from './pages/SmsExport';
-import ContactMatcher from './pages/ContactMatcher';
-import Incidents from './pages/Incidents';
-import PhoneBank from './pages/PhoneBank';
-import CheatSheets from './pages/CheatSheets';
+
+const Landing = lazy(() => import('./pages/Landing'));
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const Members = lazy(() => import('./pages/Members'));
+const Reports = lazy(() => import('./pages/Reports'));
+const Admin = lazy(() => import('./pages/Admin'));
+const Enrollment = lazy(() => import('./pages/Enrollment'));
+const Login = lazy(() => import('./pages/Login'));
+const PollingCoverage = lazy(() => import('./pages/PollingCoverage'));
+const Leaderboard = lazy(() => import('./pages/Leaderboard'));
+const Gotv = lazy(() => import('./pages/Gotv'));
+const Canvass = lazy(() => import('./pages/Canvass'));
+const Transport = lazy(() => import('./pages/Transport'));
+const PollingAgents = lazy(() => import('./pages/PollingAgents'));
+const Pvt = lazy(() => import('./pages/Pvt'));
+const SmsExport = lazy(() => import('./pages/SmsExport'));
+const ContactMatcher = lazy(() => import('./pages/ContactMatcher'));
+const Incidents = lazy(() => import('./pages/Incidents'));
+const PhoneBank = lazy(() => import('./pages/PhoneBank'));
+const CheatSheets = lazy(() => import('./pages/CheatSheets'));
 import { api } from "./lib/api";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -249,7 +250,10 @@ function GlobalSyncIndicator() {
 function App() {
   const { t } = useLanguage();
   const [memberId, setMemberId] = useState(() => localStorage.getItem("dcp_member_id"));
-  const [memberProfile, setMemberProfile] = useState(null);
+  const [memberProfile, setMemberProfile] = useState(() => {
+    const cached = localStorage.getItem("dcp_member_profile");
+    try { return cached ? JSON.parse(cached) : null; } catch(e) { return null; }
+  });
   const [profileLoading, setProfileLoading] = useState(!!localStorage.getItem("dcp_member_id"));
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeBroadcast, setActiveBroadcast] = useState(null);
@@ -290,13 +294,15 @@ function App() {
     try {
       const { data, error } = await api.getMe();
       if (error) {
-        if (error.message?.includes('Invalid token')) handleLogout();
+        if (error.message?.includes('Invalid token') || error.message?.includes('credentials were not provided')) handleLogout();
         throw new Error(error.message);
       }
       setMemberProfile(data || null);
+      if (data) localStorage.setItem("dcp_member_profile", JSON.stringify(data));
     } catch (err) {
       console.error("Failed to load member profile:", err);
-      setMemberProfile(null);
+      // Do not clear the profile on network errors so the user stays logged in visually
+      // setMemberProfile(null);
     } finally {
       setProfileLoading(false);
     }
@@ -316,6 +322,7 @@ function App() {
   const handleLogout = () => {
     localStorage.removeItem("dcp_member_id");
     localStorage.removeItem("dcp_token");
+    localStorage.removeItem("dcp_member_profile");
     setMemberId(null);
     setMemberProfile(null);
     navigate("/");
@@ -423,27 +430,35 @@ function App() {
 
       {/* Page content */}
       <main className={`relative z-10 ${showMemberNav ? 'p-4 md:p-8 min-h-[calc(100vh-3.5rem)]' : ''}`}>
-        <Routes>
-          <Route path="/"           element={<Landing onLogin={handleLogin} referrerId={searchParams.get("ref")} inviteToken={searchParams.get("invite")} />} />
-          <Route path="/login"      element={<Login onLogin={handleLogin} />} />
-          <Route path="/dashboard"  element={authed(<Dashboard  memberId={memberId} onLogout={handleLogout} />)} />
-          <Route path="/members"    element={authed(<Members    memberId={memberId} isAdmin={false} />)} />
-          <Route path="/reports"    element={authed(<Reports    memberId={memberId} />)} />
-          <Route path="/enroll"     element={authed(<Enrollment memberId={memberId} />)} />
-          <Route path="/coverage"   element={authed(<PollingCoverage />)} />
-          <Route path="/canvass"    element={authed(<Canvass    memberId={memberId} />)} />
-          <Route path="/transport"  element={authed(<Transport  memberId={memberId} />)} />
-          <Route path="/agents"     element={authed(<PollingAgents />)} />
-          <Route path="/tally"      element={authed(<Pvt        memberId={memberId} />)} />
-          <Route path="/incidents"  element={authed(<Incidents />)} />
-          <Route path="/phonebank"  element={authed(<PhoneBank />)} />
-          <Route path="/matcher"    element={authed(<ContactMatcher />)} />
-          <Route path="/sms"        element={authed(<SmsExport />)} />
-          <Route path="/leaderboard" element={authed(<Leaderboard memberId={memberId} />)} />
-          <Route path="/gotv"       element={authed(<Gotv memberId={memberId} />)} />
-          <Route path="/training"   element={authed(<CheatSheets />)} />
-          <Route path="/admin"      element={renderAdminRoute()} />
-        </Routes>
+        <Suspense fallback={
+          <div className="min-h-[50vh] flex items-center justify-center">
+            <div className="flex flex-col items-center gap-3">
+              <div className="w-8 h-8 border-4 border-dcp-green border-t-transparent rounded-full animate-spin" />
+            </div>
+          </div>
+        }>
+          <Routes>
+            <Route path="/"           element={<Landing onLogin={handleLogin} referrerId={searchParams.get("ref")} inviteToken={searchParams.get("invite")} />} />
+            <Route path="/login"      element={<Login onLogin={handleLogin} />} />
+            <Route path="/dashboard"  element={authed(<Dashboard  memberId={memberId} onLogout={handleLogout} />)} />
+            <Route path="/members"    element={authed(<Members    memberId={memberId} isAdmin={false} />)} />
+            <Route path="/reports"    element={authed(<Reports    memberId={memberId} />)} />
+            <Route path="/enroll"     element={authed(<Enrollment memberId={memberId} />)} />
+            <Route path="/coverage"   element={authed(<PollingCoverage />)} />
+            <Route path="/canvass"    element={authed(<Canvass    memberId={memberId} />)} />
+            <Route path="/transport"  element={authed(<Transport  memberId={memberId} />)} />
+            <Route path="/agents"     element={authed(<PollingAgents />)} />
+            <Route path="/tally"      element={authed(<Pvt        memberId={memberId} />)} />
+            <Route path="/incidents"  element={authed(<Incidents />)} />
+            <Route path="/phonebank"  element={authed(<PhoneBank />)} />
+            <Route path="/matcher"    element={authed(<ContactMatcher />)} />
+            <Route path="/sms"        element={authed(<SmsExport />)} />
+            <Route path="/leaderboard" element={authed(<Leaderboard memberId={memberId} />)} />
+            <Route path="/gotv"       element={authed(<Gotv memberId={memberId} />)} />
+            <Route path="/training"   element={authed(<CheatSheets />)} />
+            <Route path="/admin"      element={renderAdminRoute()} />
+          </Routes>
+        </Suspense>
       </main>
 
       {/* Footer — only on public (non-member, non-admin) pages */}
